@@ -6,7 +6,8 @@ COPY . /app
 
 RUN npm i -g pnpm
 RUN pnpm install
+RUN pnpm prisma:generate
 
-EXPOSE 3000:3000
+EXPOSE 3000
 
-CMD ["pnpm", "start:dev"]
+CMD ["sh", "-c", "pnpm prisma:migrate:dev && pnpm start:dev"]

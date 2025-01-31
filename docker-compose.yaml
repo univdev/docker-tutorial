@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  my_app:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,3 +11,26 @@ services:
       - .:/app
     environment:
       - NODE_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+    volumes:
+      - postgres_${NODE_ENV}_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_development_data:
+  postgres_production_data:
