@@ -67,17 +67,19 @@ volumes:
   postgres_production_data:
 ```
 
-Docker Compose는 여러 이미지를 여러 컨테이너로 묶어서 관리할 수 있도록 도와줍니다.  
-`app`과 `postgres`는 각각 이미지를 의미합니다.
+Docker Compose는 여러 이미지를 여러 컨테이너로 묶어서 관리할 수 있도록 도와줍니다.
 
-`build`는 DockerFile을 의미합니다.
-`build.context`는 현재 디렉토리를 의미합니다.
-`build.dockerfile`은 Dockerfile을 의미합니다.
+- `app`과 `postgres`는 각각 이미지를 의미합니다.
 
-`ports`는 호스트와 컨테이너의 포트를 매핑합니다.
-`volumes`는 호스트와 컨테이너의 볼륨을 매핑합니다. (호스트의 현재 폴더와 컨테이너 내부 폴더가 동기화 되는 기능입니다. 이로써 hot-reload 기능을 사용할 수 있습니다.)
-`environment`는 컨테이너의 환경변수를 설정합니다.
-`depends_on`은 컨테이너의 의존성을 설정합니다.
+- `build`는 DockerFile을 의미합니다.
+- `build.context`는 현재 디렉토리를 의미합니다.
+- `build.dockerfile`은 Dockerfile을 의미합니다.
+
+- `ports`는 호스트와 컨테이너의 포트를 매핑합니다.
+- `volumes`는 호스트와 컨테이너의 볼륨을 매핑합니다.
+  - `app` 서비스의 문법대로 사용하면 호스트의 파일과 컨테이너 내부 파일이 동기화 됩니다.
+- `environment`는 컨테이너의 환경변수를 설정합니다.
+- `depends_on`은 컨테이너의 의존성을 설정합니다.
 
 ## package.json scripts
 
