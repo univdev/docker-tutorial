@@ -1,99 +1,114 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Docker Tutorial
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Dockerfile과 Docker Compose를 사용하여 nestjs + prisma + postgres 환경을 구축해봅니다.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Dockerfile
 
-## Description
+```Dockerfile
+FROM node:18
+# Node의 버전입니다.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+WORKDIR /app
+# Container 내부 디렉토리를 설정합니다.
 
-## Project setup
+COPY . /app
+# 현재 디렉토리 (호스트의 실제 작업 디렉토리)를 Container 내부 디렉토리로 복사합니다.
 
-```bash
-$ pnpm install
+RUN npm i -g pnpm
+# pnpm을 전역으로 설치합니다.
+
+RUN pnpm install
+# 현재 디렉토리의 package.json을 읽어서 필요한 패키지를 설치합니다.
+
+RUN pnpm prisma:generate
+# prisma 모델을 기반으로 prisma client를 생성합니다.
+
+EXPOSE 3000
+# 3000번 포트를 외부에 노출합니다.
+
+CMD ["sh", "-c", "pnpm prisma:migrate:dev && pnpm start:dev"]
+# 컨테이너가 시작될 때 실행할 명령어를 설정합니다.
+# 데이터베이스 마이그레이션을 실행하고 개발 서버를 시작합니다.
+# CMD에 몰아서 설정한 이유는 컨테이너가 시작 되어야 Postgres가 시작되어 migrate:dev 명령어를 수행할 수 있기 때문입니다.
 ```
 
-## Compile and run the project
+## Docker Compose
 
-```bash
-# development
-$ pnpm run start
+```yaml
+version: '3.8'
 
-# watch mode
-$ pnpm run start:dev
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - postgres
 
-# production mode
-$ pnpm run start:prod
+  postgres:
+    image: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+    volumes:
+      - postgres_${NODE_ENV}_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_development_data:
+  postgres_production_data:
 ```
 
-## Run tests
+Docker Compose는 여러 이미지를 여러 컨테이너로 묶어서 관리할 수 있도록 도와줍니다.  
+`app`과 `postgres`는 각각 이미지를 의미합니다.
 
-```bash
-# unit tests
-$ pnpm run test
+`build`는 DockerFile을 의미합니다.
+`build.context`는 현재 디렉토리를 의미합니다.
+`build.dockerfile`은 Dockerfile을 의미합니다.
 
-# e2e tests
-$ pnpm run test:e2e
+`ports`는 호스트와 컨테이너의 포트를 매핑합니다.
+`volumes`는 호스트와 컨테이너의 볼륨을 매핑합니다. (호스트의 현재 폴더와 컨테이너 내부 폴더가 동기화 되는 기능입니다. 이로써 hot-reload 기능을 사용할 수 있습니다.)
+`environment`는 컨테이너의 환경변수를 설정합니다.
+`depends_on`은 컨테이너의 의존성을 설정합니다.
 
-# test coverage
-$ pnpm run test:cov
+## package.json scripts
+
+```json
+    "prisma:migrate:dev": "dotenv -e .env.development -- prisma migrate dev --name init",
+    "prisma:generate": "prisma generate",
+    "docker-compose:up": "docker compose --env-file .env.development up -d"
 ```
 
-## Deployment
+- `prisma:migrate:dev`는 개발 환경에서 데이터베이스 마이그레이션을 실행합니다.
+  - `dotenv`에 의존하고 있는데, 이는 migrate 시 `.env.development`라는 특수한 이름의 파일명을 사용하기 위함입니다.
+- `prisma:generate`는 prisma client를 생성합니다.
+- `docker-compose:up`은 docker compose를 실행합니다.
+  - `.env.development` 파일을 사용하는 이유는, docker compose 내부에서 환경변수에 의존하는 영역이 존재하기 때문입니다.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## .env.development
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g mau
-$ mau deploy
+```.env
+NODE_ENV=development
+POSTGRES_PASSWORD=randompassword
+POSTGRES_USER=johndoe
+POSTGRES_DB=mydb
+DATABASE_URL="postgresql://johndoe:randompassword@postgres/mydb?schema=public"
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+위 `.env.development` 파일을 현재 프로젝트 폴더에 생성하고 위 내용을 복사하면 정상적으로 동작합니다.
 
-## Resources
+## 실행 방법
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+pnpm docker-compose:up
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+위 명령어를 실행하면 Prisma, Postgres, Nestjs가 실행되고, 3000번 포트로 접속이 가능한 상태가 됩니다.

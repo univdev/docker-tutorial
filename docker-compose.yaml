@@ -12,8 +12,7 @@ services:
     environment:
       - NODE_ENV=production
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
 
   postgres:
     image: postgres
@@ -25,11 +24,6 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
     volumes:
       - postgres_${NODE_ENV}_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U johndoe']
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
 volumes:
   postgres_development_data:
